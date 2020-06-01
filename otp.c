@@ -183,18 +183,21 @@ int main(int argc, char *argv[])
 		remain_data = file_stat.st_size;
 		printf("Remaining Data %d\n", remain_data);
 		/* Sending file data */
+		int z=0;
 		while (remain_data > 0)
 		{
-			sent_bytes = sendfile(socketFD, fd, &offset, 255);
+			sent_bytes = sendfile(socketFD, fd, &offset, BUFSIZ);
 
 			if (sent_bytes > 0)
 			{
+				z=z+1;
 				printf("Bytes Transferred %d\n", sent_bytes);
 				remain_data -= sent_bytes;
 			}
 			printf("Remaining Data %d\n", remain_data);
 		}
-
+                printf("-----------------%d ------------------------------------------------\n",z);
+		
 		memset(msg, '\0', sizeof(msg));
 		charsRead = recv(socketFD, msg, 512, 0);
 		printf("%s\n", msg);
@@ -296,9 +299,10 @@ int main(int argc, char *argv[])
 		fclose(fp);
 
 		/*Step 8: Remove decrypted file*/
-		remove("solution");
+		// remove("solution");
 		fflush(stdout);
 		printf("%s",output);
+		
 	}
 	close(socketFD);
 	return 0;

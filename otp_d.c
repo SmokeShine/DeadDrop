@@ -12,8 +12,6 @@
 #include <unistd.h>
 #include <assert.h>
 
-
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -77,7 +75,7 @@ int main(int argc, char *argv[])
     int status = -5;
     int listenSocketFD, establishedConnectionFD, portNumber, charsRead;
     socklen_t sizeOfClientInfo;
-    char buffer[512];
+    char buffer[75000];
     struct sockaddr_in serverAddress, clientAddress;
 
     if (argc < 2)
@@ -101,15 +99,18 @@ int main(int argc, char *argv[])
     // Enable the socket to begin listening
     if (bind(listenSocketFD, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) < 0) // Connect socket to port
         error("ERROR on binding");
-    listen(listenSocketFD, 5); // Flip the socket on - it can now receive up to 5 connections
     while (1)
     {
+        listen(listenSocketFD, 5); // Flip the socket on - it can now receive up to 5 connections
+
         pid = fork();
         if (pid == 0)
         {
             // Accept a connection, blocking if one is not available until one connects
-            sizeOfClientInfo = sizeof(clientAddress);                                                               // Get the size of the address for the client that will connect
+            sizeOfClientInfo = sizeof(clientAddress);
+            // Get the size of the address for the client that will connect
             establishedConnectionFD = accept(listenSocketFD, (struct sockaddr *)&clientAddress, &sizeOfClientInfo); // Accept
+
             if (establishedConnectionFD < 0)
                 error("ERROR on accept");
             /* Sleep for 2 seconds */
@@ -138,7 +139,7 @@ int main(int argc, char *argv[])
             charsRead = recv(establishedConnectionFD, buffer, 255, 0); // Read the client's message from the socket
             strcpy(user, buffer);
             printf("%s - %s\n", user, mode);
-
+            printf("\n\n\n\n\n\n-----------%s----------\n\n\n\n\n",user);
             memset(msg, '\0', sizeof(msg));
             strcpy(msg, "OK");
             charsWritten = send(establishedConnectionFD, msg, strlen(msg), 0);
@@ -146,14 +147,14 @@ int main(int argc, char *argv[])
             if (strcmp(mode, "post") == 0)
             {
                 /*Step 3: File Size of Message*/
-                recv(establishedConnectionFD, buffer, BUFSIZ, 0);
+                recv(establishedConnectionFD, buffer, sizeof(buffer), 0);
                 int file_size;
                 file_size = atoi(buffer);
-
+                printf("\n\n\n\n\n\n-----------%s----------\n\n\n\n\n",user);
                 memset(msg, '\0', sizeof(msg));
                 strcpy(msg, "OK");
                 charsWritten = send(establishedConnectionFD, msg, strlen(msg), 0);
-
+                printf("\n\n\n\n\n\n-----------%s----------\n\n\n\n\n",user);
                 /* Step 4: Receive Message*/
                 FILE *received_file;
                 int remain_data = 0;
@@ -161,25 +162,32 @@ int main(int argc, char *argv[])
                 received_file = fopen(user, "w");
                 if (received_file == NULL)
                 {
-                    fprintf(stderr, "Failed to open file foo --> %s\n", strerror(errno));
+                    fprintf(stderr, "D - Failed to open file foo --> %s\n", strerror(errno));
                     exit(EXIT_FAILURE);
                 }
 
                 remain_data = file_size;
+                int z=0;
                 printf("Remaining Data is %d\n", remain_data);
+                memset(buffer, '\0', file_size);
+                printf("\n\n\n\n\n\n-----------%s----------\n\n\n\n\n",user);
                 while (remain_data > 0)
                 {
-                    memset(buffer, '\0', 512);
-                    charsRead = recv(establishedConnectionFD, buffer, BUFSIZ, 0);
+                    
+                    charsRead = recv(establishedConnectionFD, buffer, sizeof(buffer), 0);
 
                     if (charsRead > 0)
                     {
+                        z=z+1;
                         fwrite(buffer, sizeof(char), charsRead, received_file);
                         remain_data -= charsRead;
                         fprintf(stdout, "Receive %d bytes \n", charsRead);
                     }
                     printf("Remaining Data is %d\n", remain_data);
                 }
+                printf("-----------------%d ------------------------------------------------\n",z);
+                printf("\n\n\n\n\n\n-----------%s----------\n\n\n\n\n",user);
+                
                 printf("Bytes Pending %d \n", remain_data);
                 fclose(received_file);
 
@@ -190,7 +198,7 @@ int main(int argc, char *argv[])
                 /*Step 5: Key Filename*/
                 char key_filename[512];
                 memset(buffer, '\0', 512);
-                charsRead = recv(establishedConnectionFD, buffer, BUFSIZ, 0); // Read the client's message from the socket
+                charsRead = recv(establishedConnectionFD, buffer, sizeof(buffer), 0); // Read the client's message from the socket
                 strcpy(key_filename, buffer);
                 printf("%s - %s - %s\n", user, mode, key_filename);
 
@@ -200,26 +208,28 @@ int main(int argc, char *argv[])
 
                 /* Step 6: Read the key file*/
                 int i = 0;
-                char key_lines[BUFSIZ];
+                char key_lines[sizeof(buffer)];
                 FILE *fp = fopen(key_filename, "r");
 
                 fgets(key_lines, sizeof(key_lines), fp);
-                printf("Key Loaded for %s -%s", user, key_lines);
+                // printf("Key Loaded for %s -%s", user, key_lines);
 
                 fclose(fp);
                 /* Step 7: Read the message file*/
                 /**/
-                char message_lines[BUFSIZ];
+                char message_lines[sizeof(buffer)];
 
                 FILE *fp_message = fopen(user, "r");
+                
+                printf("\n\n\n\n\n\n-----------%s----------\n\n\n\n\n",user);
                 if (fp_message == NULL)
                 {
-                    fprintf(stderr, "Failed to open file foo --> %s\n", strerror(errno));
+                    fprintf(stderr, "C -Failed to open file foo --> %s\n", strerror(errno));
                     exit(EXIT_FAILURE);
                 }
                 fgets(message_lines, sizeof(key_lines), fp_message);
                 printf("Message Loaded for %s -%s\n", user, message_lines);
-
+                
                 fclose(fp_message);
                 /*Step 8: Delete the temp file*/
                 int del = remove(user);
@@ -237,13 +247,14 @@ int main(int argc, char *argv[])
                 {
                     key_lines[i] = toupper(key_lines[i]);
                 }
+
                 printf("Fixed Formats\n");
                 printf("Message: %s\n", message_lines);
                 printf("Key: %s\n", key_lines);
                 /*Step 10: Add both of them - ascii value?*/
-                
+
                 char *ciphertext = (char *)malloc(strlen(message_lines));
-                memset(ciphertext,'\0',strlen(message_lines));
+                memset(ciphertext, '\0', strlen(message_lines));
                 int temp = 0;
                 int temp_message_key = 0;
                 for (i = 0; i < strlen(message_lines) - 1; i++) /*Excluding null at the end*/
@@ -254,16 +265,16 @@ int main(int argc, char *argv[])
                     printf("%d - %d", convert_to_index(message_lines[i]), convert_to_index(key_lines[i]));
                     ciphertext[i] = convert_to_char(temp_message_key);
                 }
-                printf("Ciphertext is %s and its length is %ld\n", ciphertext,strlen(ciphertext));
+                printf("Ciphertext is %s and its length is %ld\n", ciphertext, strlen(ciphertext));
                 /*Step 11: Save to Disk*/
                 unsigned int dollar_expansion;
                 dollar_expansion = getpid();
-                char *encrypted_file_name = malloc(21);
-                sprintf(encrypted_file_name, "encrypted_%s_%d", user,dollar_expansion);
+                char encrypted_file_name[1024];
+                sprintf(encrypted_file_name, "encrypted_%s_%d", user, dollar_expansion);
                 FILE *fp_cipher_message = fopen(encrypted_file_name, "w");
                 if (fp_cipher_message == NULL)
                 {
-                    fprintf(stderr, "Failed to open file foo --> %s\n", strerror(errno));
+                    fprintf(stderr, "B -Failed to open file foo --> %s\n", strerror(errno));
                     exit(EXIT_FAILURE);
                 }
                 fwrite(ciphertext, strlen(ciphertext), 1, fp_cipher_message);
@@ -271,14 +282,14 @@ int main(int argc, char *argv[])
 
                 fclose(fp_cipher_message);
                 printf("Encryption Complete for %s\n", user);
-                printf("Encrypted File Name is %s\n",encrypted_file_name);
+                printf("Encrypted File Name is %s\n", encrypted_file_name);
             }
             else if (strcmp(mode, "get") == 0)
             {
                 /*Step 3: Key Filename*/
                 char key_filename[512];
                 memset(buffer, '\0', 512);
-                charsRead = recv(establishedConnectionFD, buffer, BUFSIZ, 0); // Read the client's message from the socket
+                charsRead = recv(establishedConnectionFD, buffer, sizeof(buffer), 0); // Read the client's message from the socket
                 strcpy(key_filename, buffer);
                 printf("%s - %s - %s\n", user, mode, key_filename);
 
@@ -288,7 +299,7 @@ int main(int argc, char *argv[])
 
                 /* Step 4: Read the key file*/
                 int i = 0;
-                char key[BUFSIZ];
+                char key[sizeof(buffer)];
                 FILE *fp = fopen(key_filename, "r");
 
                 fgets(key, sizeof(key), fp);
@@ -304,7 +315,7 @@ int main(int argc, char *argv[])
                 /* Step 5: Find the oldest encrypted file for the user*/
                 int oldestDirTime = INT_MAX;
 
-                char targetDirPrefix[2048] ;
+                char targetDirPrefix[2048];
                 sprintf(targetDirPrefix, "encrypted_%s_", user);
                 static char oldestDirName[512];
                 memset(oldestDirName, '\0', sizeof(oldestDirName));
@@ -335,12 +346,12 @@ int main(int argc, char *argv[])
 
                 /* Step 5.01: Read the encryption file*/
 
-                char ciphertext[BUFSIZ];
+                char ciphertext[sizeof(buffer)];
 
                 FILE *fp_message = fopen(oldestDirName, "r");
                 if (fp_message == NULL)
                 {
-                    fprintf(stderr, "Failed to open file foo --> %s\n", strerror(errno));
+                    fprintf(stderr, "A - Failed to open file foo --> %s\n", strerror(errno));
                     exit(EXIT_FAILURE);
                 }
                 fgets(ciphertext, sizeof(key), fp_message);
@@ -376,11 +387,11 @@ int main(int argc, char *argv[])
                 /*Decrypt*/
                 int temp = 0;
                 int temp_message_key = 0;
-                char *solution = (char *)malloc((atoi(file_size)) * sizeof(char));
-                memset(solution,'\0',sizeof(solution));
+                char *solution = (char *)malloc((atoi(file_size)+1) * sizeof(char));
+                memset(solution, '\0', sizeof(solution));
                 for (i = 0; i < atoi(file_size); i++) /*Excluding null at the end*/
                 {
-                    
+
                     if (ciphertext[i] == (char)32)
                     {
                         ciphertext[i] = (char)64;
@@ -398,7 +409,8 @@ int main(int argc, char *argv[])
                     // printf("temp \t cipher  \t key \t temp_message_key \n");
                     // printf("%d \t %d  \t\t %d \t %d \n", temp, ciphertext[i], key[i], temp_message_key);
                 }
-                solution[atoi(file_size) ] = '\0';
+                solution[atoi(file_size)] = '\n';
+                solution[atoi(file_size)+1] = '\0';
                 printf("\n%s%ld\n", solution, strlen(solution));
                 sprintf(file_size, "%ld", strlen(solution));
 
@@ -412,7 +424,7 @@ int main(int argc, char *argv[])
                 }
 
                 memset(msg, '\0', sizeof(msg));
-                charsRead = recv(establishedConnectionFD, msg, BUFSIZ, 0);
+                charsRead = recv(establishedConnectionFD, msg, sizeof(buffer), 0);
                 printf("----%s\n", msg);
 
                 /* Step 9 : Send the decrypted file to client*/
@@ -436,7 +448,7 @@ int main(int argc, char *argv[])
                 }
 
                 memset(msg, '\0', sizeof(msg));
-                charsRead = recv(establishedConnectionFD, msg, BUFSIZ, 0);
+                charsRead = recv(establishedConnectionFD, msg, sizeof(buffer), 0);
                 printf("%s\n", msg);
 
                 // memset(msg, '\0', sizeof(msg));
@@ -450,9 +462,11 @@ int main(int argc, char *argv[])
                 else
                     printf("the temp file is not Deleted\n");
 
-                /* Step 11: Delete encrypted file*/ 
-                remove(oldestDirName);   
+                /* Step 11: Delete encrypted file*/
+                remove(oldestDirName);
             }
+            printf("-------\n");
+            
             /*Closing for Child*/
             close(establishedConnectionFD); // Close the existing socket which is connected to the client
         }
@@ -460,7 +474,7 @@ int main(int argc, char *argv[])
         {
             waitpid(pid, &status, 0);
             printf("Parent\n");
-            close(listenSocketFD); // Close the listening socket
+            // close(listenSocketFD); // Close the listening socket
         }
     }
 }
