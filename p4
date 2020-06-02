@@ -89,10 +89,7 @@ cat $ciphertext1
 ${echo}
 ${echo} '#-----------------------------------------'
 ${echo} '#otp_get "Ben" ciphertext1 key70000 $encport'
-${echo} '===09=== #5 POINTS: Should fail giving error that there are no messages for Ben'
-otp get "Ben" key70000 $encport
-${echo}
-${echo} '#-----------------------------------------'
+
 ${echo} '===10=== #20 POINTS: should return decrypted ciphertext1 that matches source'
 ${echo} '#cat plaintext1'
 cat plaintext1
