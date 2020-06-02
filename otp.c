@@ -238,12 +238,12 @@ int main(int argc, char *argv[])
 		memset(msg, '\0', sizeof(msg));
 		recv(socketFD, msg, sizeof(msg), 0); //check if message exist
 		send(socketFD, msg, sizeof(msg), 0);
-		if (strcmp(msg,"No")==0)
+		if (strcmp(msg, "No") == 0)
 		{
 			fprintf(stderr, "There are no messages for %s\n", argv[2]);
 			exit(EXIT_FAILURE);
 		}
-		
+
 		/* Step 3.1: Read the key file*/
 
 		int i = 0;
@@ -327,9 +327,10 @@ int main(int argc, char *argv[])
 			solution[i] = convert_to_char(temp_message_key);
 		}
 
-		solution[encrypted_file_size-1] = '\n';
+		solution[encrypted_file_size - 1] = '\n';
 		// solution[encrypted_file_size + 1] = '\0';
 		fprintf(stdout, "%s", solution);
+		remove("solution");
 		return 0;
 	}
 	close(socketFD);

@@ -1,31 +1,17 @@
 
 /* Library Imports */
 #include <stdio.h>
-#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <dirent.h>
 #include <time.h>
-#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <assert.h>
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <stdio.h>
 #include <limits.h>
-#include <string.h>
 #include <ftw.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/wait.h>
-#include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/socket.h>
@@ -35,17 +21,8 @@
 #include <ctype.h>
 #include <netdb.h>
 #include <sys/sendfile.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <signal.h>
 
-volatile sig_atomic_t connections = 5;
+volatile sig_atomic_t connections;
 
 void error(const char *msg)
 {
@@ -63,7 +40,7 @@ int main(int argc, char *argv[])
     socklen_t sizeOfClientInfo;
     char buffer[75000];
     struct sockaddr_in serverAddress, clientAddress;
-
+    connections = 5;
     if (argc < 2)
     {
         fprintf(stderr, "USAGE: %s port\n", argv[0]);
@@ -86,34 +63,41 @@ int main(int argc, char *argv[])
     if (bind(listenSocketFD, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) < 0) // Connect socket to port
         error("ERROR on binding");
 
+    // Start listening socket
+    listen(listenSocketFD, 5); // Flip the socket on - it can now receive up to 5 connections
+
     while (1)
     {
-        int status;
-        pid_t kid;
-        status = waitpid(-1, NULL, WNOHANG);
-        // while (status > 0) {
-        //     write(1,"Hello",6);
-        //     connections=connections+1;
-        // }
-        //printf("%d\n",status);
+
+        // Check if any child process is completed
+        while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
+        {
+            printf("child %u terminated.\n", (unsigned)pid);
+            connections = connections + 1;
+            printf("Connection Pool: %d.\n", connections);
+        }
+
+        // Control fork count
         if ((connections > 0) && (connections <= 5))
         {
-            listen(listenSocketFD, 5); // Flip the socket on - it can now receive up to 5 connections
-            // Accept a connection, blocking if one is not available until one connects
+
+            // printf("Hello"); For Checking fork bomb
+
             sizeOfClientInfo = sizeof(clientAddress);
             // Get the size of the address for the client that will connect
             establishedConnectionFD = accept(listenSocketFD, (struct sockaddr *)&clientAddress, &sizeOfClientInfo); // Accept
-            if (establishedConnectionFD < 0)
-                error("ERROR on accept");
-
             pid = fork();
             connections = connections - 1;
 
             if (pid == 0)
             {
+                // Accept a connection, blocking if one is not available until one connects
 
+                if (establishedConnectionFD < 0)
+                    error("ERROR on accept");
                 /* Sleep for 2 seconds */
                 sleep(2);
+                
                 /*Step 1: Mode - get/post*/
                 memset(buffer, '\0', 512);
                 charsRead = recv(establishedConnectionFD, buffer, 255, 0); // Read the client's message from the socket
@@ -158,13 +142,14 @@ int main(int argc, char *argv[])
                         FILE *received_file;
                         int remain_data = 0;
                         ssize_t len;
-
+                        // Dollar expansion for generating file name
                         unsigned int dollar_expansion;
                         dollar_expansion = getpid();
                         char encrypted_file_name[1024];
                         sprintf(encrypted_file_name, "encrypted_%s_%d", user, dollar_expansion);
                         fflush(stdout);
                         fprintf(stdout, "./%s\n", encrypted_file_name);
+                        // Receive encrypted file
                         received_file = fopen(encrypted_file_name, "w");
                         if (received_file == NULL)
                         {
@@ -194,11 +179,13 @@ int main(int argc, char *argv[])
                         charsWritten = send(establishedConnectionFD, msg, strlen(msg), 0);
                         fflush(stdout);
                     }
+                    return 0;
                 }
                 else if (strcmp(mode, "get") == 0)
                 {
 
                     /* Step 5: Find the oldest encrypted file for the user*/
+
                     int oldestDirTime = INT_MAX;
 
                     char targetDirPrefix[2048];
@@ -232,16 +219,16 @@ int main(int argc, char *argv[])
                     char ciphertext[sizeof(buffer)];
 
                     FILE *fp_message = fopen(oldestDirName, "r");
-                    memset(msg,'\0',sizeof(msg));
-                    strcpy(msg,"OK");
+                    memset(msg, '\0', sizeof(msg));
+                    strcpy(msg, "OK");
                     if (fp_message == NULL)
                     {
-                        strcpy(msg,"No");
+                        strcpy(msg, "No");
                     }
                     send(establishedConnectionFD, msg, sizeof(msg), 0);
                     recv(establishedConnectionFD, msg, sizeof(msg), 0);
 
-                    if (strcmp(msg,"OK") == 0)
+                    if (strcmp(msg, "OK") == 0)
                     {
                         fgets(ciphertext, sizeof(ciphertext), fp_message);
 
@@ -299,14 +286,24 @@ int main(int argc, char *argv[])
 
                         memset(msg, '\0', sizeof(msg));
                         charsRead = recv(establishedConnectionFD, msg, sizeof(buffer), 0);
+                        remove(oldestDirName);
+
+                        fflush(stdout);
                     }
                     /*Closing for Child*/
                     close(establishedConnectionFD); // Close the existing socket which is connected to the client
+                    return 0;
                 }
-                else
-                {
-                    ; /*Do nothing*/
-                }
+            }
+            else
+            {
+                        while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
+        {
+            printf("child %u terminated.\n", (unsigned)pid);
+            connections = connections + 1;
+            printf("Connection Pool: %d.\n", connections);
+        }
+                ; // Not waiting for child
             }
         }
     }
