@@ -434,7 +434,7 @@ int main(int argc, char *argv[])
                     }
                     printf("Remaining Data %d\n", remain_data);
                 }
-
+               
                     // off_t offset = 0;
                     // int remain_data = strlen(ciphertext)+10;
                     // printf("Remaining Data %d\n", remain_data);
@@ -457,7 +457,7 @@ int main(int argc, char *argv[])
                     memset(msg, '\0', sizeof(msg));
                     charsRead = recv(establishedConnectionFD, msg, sizeof(buffer), 0);
                     printf("%s\n", msg);
-
+                    
                     // memset(msg, '\0', sizeof(msg));
                     // strcpy(msg, "OK");
                     // charsWritten = send(establishedConnectionFD, msg, strlen(msg), 0);

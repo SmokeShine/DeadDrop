@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
 	struct sockaddr_in serverAddress;
 	struct hostent *serverHostInfo;
 
-	char buffer[512];
+	char buffer[75000];
 	int port_index = -1;
 	int sent_bytes = 0;
 
@@ -325,7 +325,7 @@ int main(int argc, char *argv[])
 		while (remain_data > 0)
 		{
 			memset(buffer, '\0', sizeof(buffer));
-			charsRead = recv(socketFD, buffer, sizeof(buffer)+10, 0);
+			charsRead = recv(socketFD, buffer, sizeof(buffer), 0);
 
 			if (charsRead > 0)
 			{
@@ -356,7 +356,8 @@ int main(int argc, char *argv[])
 		char *solution = (char *)malloc((encrypted_file_size + 1) * sizeof(char));
 		memset(solution, '\0', sizeof(solution));
 		printf("*********%s*******\n",ciphertext);
-		printf("*********%d*******\n",ciphertext[0]);
+		printf("*********%d****%d***\n",encrypted_file_size,strlen(key));
+
 		for (i = 0; i < encrypted_file_size; i++) /*Excluding null at the end*/
 		{
                     if (ciphertext[i] == (char)32)
@@ -373,9 +374,11 @@ int main(int argc, char *argv[])
 			temp_message_key = ((temp % 27) + 27) % 27;
 			// printf("%d\t%s\n",strlen(solution),convert_to_char(temp_message_key));
 			solution[i] = convert_to_char(temp_message_key);
-			printf("temp \t cipher  \t key \t temp_message_key \n");
-			printf("%d \t %d  \t\t %d \t %d \n", temp, ciphertext[i], key[i], temp_message_key);
+			// printf("temp \t cipher  \t key \t temp_message_key \n");
+			// printf("%d \t %d  \t\t %d \t %d \n", temp, ciphertext[i], key[i], temp_message_key);
+			printf("%d \t",i);
 		}
+
 		solution[encrypted_file_size] = '\n';
 		solution[encrypted_file_size + 1] = '\0';
 		printf("\n%s\n%ld\n", solution, strlen(solution));
