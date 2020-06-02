@@ -89,7 +89,10 @@ cat $ciphertext1
 ${echo}
 ${echo} '#-----------------------------------------'
 ${echo} '#otp_get "Ben" ciphertext1 key70000 $encport'
-
+${echo} '===09=== #5 POINTS: Should fail giving error that there are no messages for Ben'
+otp get "Ben" key70000 $encport
+${echo}
+${echo} '#-----------------------------------------'
 ${echo} '===10=== #20 POINTS: should return decrypted ciphertext1 that matches source'
 ${echo} '#cat plaintext1'
 cat plaintext1
@@ -98,5 +101,79 @@ otp get TJ key70000 $encport
 ${echo}
 ${echo} '#-----------------------------------------'
 ${echo} '#otp get TJ key70000 $encport > plaintext1_a'
-echo $encport
 otp get TJ key70000 $encport > plaintext1_a
+${echo} "===11=== #10 POINTS: plaintext1_a must exist"
+[ -s plaintext1_a ] || rm -f plaintext1_a
+if [ -f plaintext1_a ]; then ${echo} 'plaintext1_a exists!'; else ${echo} 'plaintext1_a DOES NOT EXIST'; fi
+${echo}
+${echo} '#-----------------------------------------'
+${echo} '#cmp plaintext1 plaintext1_a'
+${echo} '===12=== #5 POINTS: plaintext1 must be the same as plaintext1_a:'
+${echo} '#echo $? should be == 0, which means the cmp succeeded!'
+cmp plaintext1 plaintext1_a
+echo $?
+${echo}
+otp post "TJ"     plaintext3 key70000 $encport &
+read line <&"${otp_fd[0]}"
+history+=($line)
+${echo} '#-----------------------------------------'
+${echo} '===13=== #20 POINTS: concurrent test of encryption - look for 4 properly-sized ciphertext# files, or 5 where the 5th is 0 bytes'
+${echo} '===14=== #5 POINTS: Should be only one error about plaintext5 being bad'
+rm -f plaintext*_*
+otp post "Ben"    plaintext1 key70000 $encport &
+otp post "TJ"     plaintext2 key70000 $encport &
+otp post "Ryan"   plaintext3 key70000 $encport &
+otp post "Nathan" plaintext4 key70000 $encport &
+otp post "Bram"   plaintext5 key70000 $encport &
+${echo} '#Six second sleep, your program must complete in this time'
+sleep 6
+#ls -pla
+num_read=1
+for ((i = 1; i < 5; i++)); do
+    read -t 0.01 line <&"${otp_fd[0]}" || continue
+    ((num_read++))
+    history+=($line)
+    ${echo} $(wc -c $line)
+done
+
+${echo} '#-----------------------------------------'
+${echo} 'Waiting for any remaining files'
+for ((i = num_read; i < 5; i++)); do
+    read -t 6 line <&"${otp_fd[0]}" || continue
+    ${echo} $line
+    history+=($line)
+done
+len=${#history[@]}
+touch ${history[ $(( len - 5 )) ]}
+
+${echo}
+${echo} '#-----------------------------------------'
+${echo} '===15=== #15 POINTS: concurrent test of decryption - look for 4 plaintext#_a files that match the plaintext# files'
+otp get "TJ"     key70000 $encport > plaintext2_a &
+otp get "Ben"    key70000 $encport > plaintext1_a &
+otp get "Ryan"   key70000 $encport > plaintext3_a &
+otp get "Nathan" key70000 $encport > plaintext4_a &
+${echo} '#Six second sleep, your program must complete in this time'
+sleep 6
+#ls -pla
+${echo}
+cmp plaintext4 plaintext4_a
+for ((i = 1; i < 5; i++)); do
+    cmp plaintext${i} plaintext${i}_a && echo "plaintext${i}_a matches" 
+done
+#head -c2 plaintext4
+#head -c2 plaintext4_a
+${echo}
+${echo} '#-----------------------------------------'
+${echo} '#There should be only one ciphertext file remaining (-1 for each additional file, up to 5)'
+for (( i = 0; i < ${#history[@]}; i++ )); do
+    [[ -f ${history[i]} ]] && echo "${history[i]} exists" && rm "${history[i]}"
+done
+
+#Clean up
+${echo}
+${echo} '#-----------------------------------------'
+${echo} '#Cleaning up - ignore Operation Not Permitted errors'
+killall -q -u $USER otp_*
+${echo}
+${echo} '#SCRIPT COMPLETE'

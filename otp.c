@@ -307,9 +307,8 @@ int main(int argc, char *argv[])
 		/*Decrypt*/
 		int temp = 0;
 		int temp_message_key = 0;
-		char *solution = (char *)malloc((encrypted_file_size + 1) * sizeof(char));
+		char *solution = (char *)malloc((encrypted_file_size ) * sizeof(char));
 		memset(solution, '\0', sizeof(solution));
-
 		for (i = 0; i < encrypted_file_size; i++) /*Excluding null at the end*/
 		{
 			if (ciphertext[i] == (char)32)
@@ -326,11 +325,12 @@ int main(int argc, char *argv[])
 			temp_message_key = ((temp % 27) + 27) % 27;
 			solution[i] = convert_to_char(temp_message_key);
 		}
-
-		solution[encrypted_file_size - 1] = '\n';
-		// solution[encrypted_file_size + 1] = '\0';
+		solution[encrypted_file_size] = '\0';
+		solution[encrypted_file_size-1 ] = '\n';
+		
+		fflush(stdout);
 		fprintf(stdout, "%s", solution);
-		remove("solution");
+		// remove("solution");
 		return 0;
 	}
 	close(socketFD);

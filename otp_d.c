@@ -30,6 +30,18 @@ void error(const char *msg)
     exit(1);
 } // Error function used for reporting issues
 
+void my_sigchld_handler(int sig)
+{
+    pid_t p;
+    int status;
+
+    while ((p=waitpid(-1, &status, WNOHANG)) > 0)
+    {
+       /* Handle the death of pid p */
+       connections=connections+1;
+    }
+}
+
 int main(int argc, char *argv[])
 {
     pid_t pid = -5;
@@ -41,6 +53,31 @@ int main(int argc, char *argv[])
     char buffer[75000];
     struct sockaddr_in serverAddress, clientAddress;
     connections = 5;
+
+     struct sigaction SIGINT_handler_struct_parent = {0};
+
+    sigset_t block_mask_parent;
+    sigaddset(&block_mask_parent, SIGCHLD);
+    sigaddset(&block_mask_parent, SIGQUIT);
+    /*
+    struct sigaction {
+    void (*sa_handler)(int); - Pointer to a signal-catching function or one of the macros SIG_IGN or SIG_DFL.
+    sigset_t sa_mask; - Additional set of signals to be blocked during execution of signal-catching function.
+    int sa_flags; - Special flags to affect behavior of signal.
+    void (*sa_restorer)(void); - old, Pointer to a signal-catching function.
+    }
+    */
+    SIGINT_handler_struct_parent.sa_handler = my_sigchld_handler;
+    SIGINT_handler_struct_parent.sa_mask = block_mask_parent;
+    SIGINT_handler_struct_parent.sa_flags = SA_RESTART;
+    sigaction(SIGCHLD, &SIGINT_handler_struct_parent, NULL); /*Calling Sigaction function */
+
+    // struct sigaction sa;
+    // sa.sa_handler = SIG_IGN;    
+    // sa.sa_flags = SA_RESTART;
+
+    // sigaction(SIGALRM, &sa);
+    // sigaction(SIGPIPE, &sa);
     if (argc < 2)
     {
         fprintf(stderr, "USAGE: %s port\n", argv[0]);
@@ -69,14 +106,6 @@ int main(int argc, char *argv[])
     while (1)
     {
 
-        // Check if any child process is completed
-        while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
-        {
-            printf("child %u terminated.\n", (unsigned)pid);
-            connections = connections + 1;
-            printf("Connection Pool: %d.\n", connections);
-        }
-
         // Control fork count
         if ((connections > 0) && (connections <= 5))
         {
@@ -97,7 +126,7 @@ int main(int argc, char *argv[])
                     error("ERROR on accept");
                 /* Sleep for 2 seconds */
                 sleep(2);
-                
+
                 /*Step 1: Mode - get/post*/
                 memset(buffer, '\0', 512);
                 charsRead = recv(establishedConnectionFD, buffer, 255, 0); // Read the client's message from the socket
@@ -153,7 +182,6 @@ int main(int argc, char *argv[])
                         received_file = fopen(encrypted_file_name, "w");
                         if (received_file == NULL)
                         {
-                            fprintf(stderr, "D - Failed to open file foo --> %s\n", strerror(errno));
                             exit(EXIT_FAILURE);
                         }
 
@@ -297,12 +325,6 @@ int main(int argc, char *argv[])
             }
             else
             {
-                        while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
-        {
-            printf("child %u terminated.\n", (unsigned)pid);
-            connections = connections + 1;
-            printf("Connection Pool: %d.\n", connections);
-        }
                 ; // Not waiting for child
             }
         }
