@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
 	char buffer[75000];
 	int port_index = -1;
 	int sent_bytes = 0;
-
+	int i;
 	char file_size[512];
 	char msg[512];
 	struct stat file_stat;
@@ -75,6 +75,32 @@ int main(int argc, char *argv[])
 	{
 		port_index = 5;
 		strcpy(FILE_TO_SEND_message, argv[3]);
+		// Check for invalid message
+				char message_lines[sizeof(buffer)];
+
+		FILE *fp_test = fopen(argv[3], "r");
+		char test_lines[75000];
+		if (fp_test == NULL)
+		{
+			fprintf(stderr, "C -Failed to open file foo --> %s\n", strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+		fgets(test_lines, sizeof(test_lines), fp_test);
+		fclose(fp_test);
+
+		
+		for (i = 0; i <= strlen(test_lines)-1; i++)
+		{
+			// printf("%c %d\n",test_lines[i],test_lines[i]);
+			if (!(test_lines[i] >= (char)65 && test_lines[i] <= (char)122 ))
+			{
+				if (test_lines[i]!=(char)32 && test_lines[i]!=(char)10)
+				{
+				fprintf(stderr, "Bad Characters in %s\n", argv[3]);
+				exit(EXIT_FAILURE);
+				}
+			}
+		}
 	}
 	else if (strcmp(argv[1], "get") == 0)
 	{
@@ -191,7 +217,7 @@ int main(int argc, char *argv[])
 
 		/*Step 4.3: Encrypt Data*/
 		/*Fixing Case*/
-		int i;
+
 		for (i = 0; i <= strlen(message_lines); i++)
 		{
 			message_lines[i] = toupper(message_lines[i]);
@@ -272,7 +298,11 @@ int main(int argc, char *argv[])
 		FILE *received_file;
 		int remain_data = 0;
 		ssize_t len;
-		received_file = fopen("solution", "w");
+		unsigned int dollar_expansion;
+		dollar_expansion = getpid();
+		char encrypted_file_name[1024];
+		sprintf(encrypted_file_name, "decrypted_%s_%d", argv[2], dollar_expansion);
+		received_file = fopen(encrypted_file_name, "w");
 		if (received_file == NULL)
 		{
 			fprintf(stderr, "Failed to open file foo --> %s\n", strerror(errno));
@@ -294,7 +324,7 @@ int main(int argc, char *argv[])
 		fclose(received_file);
 
 		/*Read Encrypted data received from disk*/
-		FILE *fp_encrypted = fopen("solution", "r");
+		FILE *fp_encrypted = fopen(encrypted_file_name, "r");
 
 		fgets(ciphertext, encrypted_file_size + 1, fp_encrypted); /*This is a sad function which will cause more issues in the future*/
 
@@ -307,7 +337,7 @@ int main(int argc, char *argv[])
 		/*Decrypt*/
 		int temp = 0;
 		int temp_message_key = 0;
-		char *solution = (char *)malloc((encrypted_file_size ) * sizeof(char));
+		char *solution = (char *)malloc((encrypted_file_size) * sizeof(char));
 		memset(solution, '\0', sizeof(solution));
 		for (i = 0; i < encrypted_file_size; i++) /*Excluding null at the end*/
 		{
@@ -326,11 +356,11 @@ int main(int argc, char *argv[])
 			solution[i] = convert_to_char(temp_message_key);
 		}
 		solution[encrypted_file_size] = '\0';
-		solution[encrypted_file_size-1 ] = '\n';
-		
+		solution[encrypted_file_size - 1] = '\n';
+
 		fflush(stdout);
 		fprintf(stdout, "%s", solution);
-		// remove("solution");
+		remove(encrypted_file_name);
 		return 0;
 	}
 	close(socketFD);
